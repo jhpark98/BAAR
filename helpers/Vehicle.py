@@ -17,25 +17,31 @@ class Vehicle():
         return self.df_vehicle
     
     def preprocess(self):
-        self.df_vehicle = self.df_vehicle.iloc[1:].reset_index(drop=True) # remove first row - not necessary datapoint
+        self.df_vehicle = self.df_vehicle.iloc[5:].reset_index(drop=True) # remove first row - not necessary datapoint
         self.rename()
+        self.reset()
+        self.add_brake()
         self.add_distance_traveled()
+        
 
     def rename(self):
         self.df_vehicle = self.df_vehicle.rename(columns={"Pos_x_Vehicle_CoorSys_E_m_": "ego_x", 
                                                           "Pos_y_Vehicle_CoorSys_E_m_": "ego_y",
                                                           "Pos_z_Vehicle_CoorSys_E_m_": "ego_z",
-                                                          "Pos_BrakePedal___": "Brake[Bar]_avg",                       # TODO - FIX
-                                                          "Angle_Yaw_Vehicle_CoorSys_E_deg_": "a_y_Vehicle_CoG[m|s2]", # TODO - FIX
+                                                          "a_y_Vehicle_CoG_m_s2_": "a_y_Vehicle_CoG[m|s2]",
                                                           "YawRate_Vehicle_CoG_deg_s_": "YawRate_Vehicle_CoG[deg|s]",
-                                                          "v_x_Vehicle_CoG_km_h_": "v_x_Vehicle_CoG[km|h]"})
+                                                          "v_x_Vehicle_CoG_km_h_": "v_x_Vehicle_CoG[km|h]",
+                                                          "s_Vehicle_m_": 's [m]'})
     
     def reset(self):
         # Remove data before starting
         # Use break-off signal to discard section before
-        self.df_vehicle = self.df_vehicle[(self.df_vehicle['Brake[Bar]_avg'] == 0.0) & (self.df_vehicle.index > 1000)].reset_index(drop=True) 
+        self.df_vehicle = self.df_vehicle[(self.df_vehicle['Pos_BrakePedal___'] == 0.0) & (self.df_vehicle.index > 1000)].reset_index(drop=True) 
         self.df_vehicle.loc[:, 'time_real'] = self.df_vehicle['time_real'] - self.df_vehicle['time_real'].iloc[0]
     
+    def add_brake(self):
+        self.df_vehicle['Brake[Bar]_avg'] = self.df_vehicle[['p_FL_Brake_bar_', 'p_FR_Brake_bar_', 'p_RL_Brake_bar_', 'p_RR_Brake_bar_']].mean(axis=1)
+
     def add_distance_traveled(self):
         # Compute the difference in each time step
         self.df_vehicle['ego_x_diff'] = self.df_vehicle['ego_x'].diff()
