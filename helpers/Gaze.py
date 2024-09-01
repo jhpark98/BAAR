@@ -50,9 +50,6 @@ class Gaze():
         closest_index = tmp.idxmin()
 
         return closest_index        
-
-
-
     
     def vis_norm_pos_x(self):
         plt.figure(figsize=(14, 6))
