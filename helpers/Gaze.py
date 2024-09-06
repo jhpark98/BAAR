@@ -71,7 +71,7 @@ class Gaze():
         plt.title('Scatter Plot of norm_pos_y')
         plt.show()
 
-    def add_ang_vel(self):
+    def add_ang_vel_sph(self):
         self.df_pupil = self.df_pupil[["pupil_timestamp","eye_id","method","theta","phi"]]
         # Filter by eye 0 and 3D method
         self.df_pupil = self.df_pupil[(self.df_pupil['eye_id'] == 0) & (self.df_pupil['method'] == 'pye3d 0.3.0 real-time')]
@@ -79,8 +79,23 @@ class Gaze():
         self.df_pupil['omega_theta'] = self.df_pupil['theta'].diff()/self.df_pupil['pupil_timestamp'].diff()
         self.df_pupil['omega_phi'] = self.df_pupil['phi'].diff()/self.df_pupil['pupil_timestamp'].diff()
         self.df_pupil = self.df_pupil.dropna()
-        self.df_pupil['omega_magnitude'] = np.sqrt(self.df_pupil['omega_theta']**2 + self.df_pupil['omega_phi']**2)
+        omega_magnitude = np.sqrt(self.df_pupil['omega_theta']**2 + self.df_pupil['omega_phi']**2)
+        self.df_pupil['omega_sph'] = omega_magnitude
         
+    def add_ang_vel_norm(self):
+        self.df_pupil = self.df_pupil[["pupil_timestamp","eye_id","method","circle_3d_normal_x","circle_3d_normal_y","circle_3d_normal_z"]]
+        # Filter by eye 0 and 3D method
+        self.df_pupil = self.df_pupil[(self.df_pupil['eye_id'] == 0) & (self.df_pupil['method'] == 'pye3d 0.3.0 real-time')]
+        # Calculate angular velocity
+        normals = self.df_pupil[['circle_3d_normal_x', 'circle_3d_normal_y', 'circle_3d_normal_z']].values
+        delta_t = self.df_pupil['pupil_timestamp'].diff().values[1:]
+        dot_products = np.einsum('ij,ij->i', normals[:-1], normals[1:])
+        norm_mag = np.linalg.norm(normals, axis=1)
+        norm_mag_products = norm_mag[:-1] * norm_mag[1:]
+        cos_thetas = dot_products / norm_mag_products
+        cos_thetas = np.clip(cos_thetas, -1.0, 1.0)
+        thetas = np.arccos(cos_thetas)
+        omega_norm = thetas / delta_t
+        self.df_pupil['omega_norm'] = omega_norm
         
     # TODO - Gaze data representation
-    
