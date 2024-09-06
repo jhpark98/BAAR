@@ -1,15 +1,17 @@
 import pandas as pd
-# import numpy as np
+import numpy as np
 import matplotlib.pyplot as plt
 
 class Gaze():
 
-    def __init__(self, PATH_GAZE, PATH_BLINK):
+    def __init__(self, PATH_GAZE, PATH_BLINK, PATH_PUPIL): ###
         self.PATH_GAZE = PATH_GAZE
         self.PATH_BLINK = PATH_BLINK
+        self.PATH_PUPIL = PATH_PUPIL ###
         
         self.df_gaze = self.load_df(PATH_GAZE)
         self.df_blink = self.load_df(PATH_BLINK)
+        self.df_pupil = self.load_df(PATH_PUPIL) ###
         self.preprocess() # preprocess gaze data
     
     def load_df(self, fpath):
@@ -68,6 +70,17 @@ class Gaze():
         plt.ylabel('norm_pos_y')
         plt.title('Scatter Plot of norm_pos_y')
         plt.show()
-    
+
+    def add_ang_vel(self):
+        self.df_pupil = self.df_pupil[["pupil_timestamp","eye_id","method","theta","phi"]]
+        # Filter by eye 0 and 3D method
+        self.df_pupil = self.df_pupil[(self.df_pupil['eye_id'] == 0) & (self.df_pupil['method'] == 'pye3d 0.3.0 real-time')]
+        # Calculate angular velocity
+        self.df_pupil['omega_theta'] = self.df_pupil['theta'].diff()/self.df_pupil['pupil_timestamp'].diff()
+        self.df_pupil['omega_phi'] = self.df_pupil['phi'].diff()/self.df_pupil['pupil_timestamp'].diff()
+        self.df_pupil = self.df_pupil.dropna()
+        self.df_pupil['omega_magnitude'] = np.sqrt(self.df_pupil['omega_theta']**2 + self.df_pupil['omega_phi']**2)
+        
+        
     # TODO - Gaze data representation
     
