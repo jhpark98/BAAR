@@ -13,8 +13,9 @@ class Vehicle():
     def __init__(self, PATH_VEHICLE, N_LAPS):
         self.df_vehicle = self.load_df(PATH_VEHICLE)
         self.N_LAPS = N_LAPS
-        self.veh_lap_end_idx = None # list of the index of the end of each lap
-        self.veh_index_lst = None   # list of (start, end)
+        self.veh_lap_end_idx = [] # list of the index of the end of each lap
+        self.veh_index_lst = []   # list of N x (start, end)
+        self.section_idx = {}    # dictionary of section - list of N x (start, end)
         
         self.preprocess()
 
@@ -44,6 +45,7 @@ class Vehicle():
         # sectioning
         self.find_veh_lap_end_idx()
         self.get_intervals(self.veh_lap_end_idx)
+        self.find_section_idx()
 
         # ensure quality of data
         self.quality_check()
@@ -130,6 +132,17 @@ class Vehicle():
         assert self.N_LAPS == len(gaze_lap_end_idx)
 
         return pd.Index(gaze_lap_end_idx)
+
+    def find_section_idx(self):
+        """
+        Find the indices of the sections in the vehicle data based on predefined conditions.
+        """
+        for condition in CONDITION.keys():
+            section_indices = []
+            for i in range(len(self.veh_index_lst)):
+                _, section_start_idx, section_end_idx = self.get_section(i, condition)
+                section_indices.append((section_start_idx, section_end_idx))
+            self.section_idx[condition] = np.array(section_indices)
 
     def vis_map(self):
         # plt.plot(df_vehicle['ego_x'], df_vehicle['ego_y'])
@@ -227,3 +240,18 @@ class Vehicle():
             print(f"saved figure {i}")
 
         return df_section, section_start_idx, section_end_idx
+
+    def get_ts(self, section, length):
+        """
+        Given a certain section, return a timestep that is 20 m away from the end of the section
+        """
+        section_idx = self.section_idx[section] # [] of N x (start, end)
+        ts = np.array([])
+
+        for _, (start, end) in enumerate(section_idx):
+            df_section = self.get_df().iloc[start:end]
+            target_distance = df_section['s'].iloc[-1] - length # length far way from stop
+            closest_idx = (df_section['s'] - target_distance).abs().idxmin() - df_section.index[0] 
+            ts = np.append(ts, df_section['time_real'].iloc[closest_idx])
+            # print(f"Distance between stop: {df_section['s'].iloc[-1] - df_section['s'].iloc[closest_idx]}")
+        return ts
